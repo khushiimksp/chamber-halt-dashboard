@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chamber HALT Test Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0b0f1a;
+    --surface:  #111827;
+    --card:     #161d2e;
+    --border:   #1e2d45;
+    --accent:   #00d4ff;
+    --accent2:  #ff6b35;
+    --accent3:  #7c3aed;
+    --green:    #10b981;
+    --red:      #ef4444;
+    --yellow:   #f59e0b;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --mono:     'IBM Plex Mono', monospace;
+    --display:  'Syne', sans-serif;
+    --body:     'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--body);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .landing-screen {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    position: relative;
+    z-index: 1;
+    padding: 24px;
+  }
+
+  .landing-card {
+    width: min(560px, 100%);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 38px 34px;
+    text-align: center;
+  }
+
+  .landing-card h1 { margin: 10px 0 14px; }
+  .landing-card .upload-panel {
+    justify-content: center;
+    flex-direction: column;
+    margin: 28px 0 0;
+  }
+
+  .dashboard-view, .dashboard-footer { display: none; }
+  body.dashboard-loaded .landing-screen { display: none; }
+  body.dashboard-loaded .dashboard-view { display: block; }
+  body.dashboard-loaded .dashboard-footer { display: block; }
+
+  /* ─── Background grid ──────────────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper { position: relative; z-index: 1; max-width: 1440px; margin: 0 auto; padding: 0 24px 60px; }
+
+  /* ─── Header ───────────────────────────────────────────── */
+  header {
+    padding: 36px 0 28px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .brand { display: flex; flex-direction: column; gap: 4px; }
+
+  .brand-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: .18em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-size: clamp(22px, 3vw, 34px);
+    font-weight: 800;
+    line-height: 1.1;
+    color: #fff;
+    letter-spacing: -.02em;
+  }
+
+  h1 span { color: var(--accent); }
+
+  .header-meta {
+    display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+  }
+
+  .live-badge {
+    display: flex; align-items: center; gap: 7px;
+    background: rgba(16,185,129,.12);
+    border: 1px solid rgba(16,185,129,.3);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--green);
+    letter-spacing: .1em;
+  }
+
+  .live-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .4; transform: scale(.7); }
+  }
+
+  .last-updated {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ─── Section labels ────────────────────────────────────── */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* ─── KPI Grid ──────────────────────────────────────────── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 20px 18px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color .2s, transform .2s;
+  }
+
+  .kpi-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .kpi-card.blue::before   { background: var(--accent); }
+  .kpi-card.orange::before { background: var(--accent2); }
+  .kpi-card.purple::before { background: var(--accent3); }
+  .kpi-card.green::before  { background: var(--green); }
+  .kpi-card.red::before    { background: var(--red); }
+  .kpi-card.yellow::before { background: var(--yellow); }
+
+  .kpi-icon {
+    font-size: 22px; margin-bottom: 10px; display: block; opacity: .9;
+  }
+
+  .kpi-value {
+    font-family: var(--display);
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 800;
+    line-height: 1;
+    color: #fff;
+    margin-bottom: 6px;
+    letter-spacing: -.03em;
+  }
+
+  .kpi-card.blue   .kpi-value { color: var(--accent); }
+  .kpi-card.orange .kpi-value { color: var(--accent2); }
+  .kpi-card.purple .kpi-value { color: #a78bfa; }
+  .kpi-card.green  .kpi-value { color: var(--green); }
+  .kpi-card.red    .kpi-value { color: var(--red); }
+  .kpi-card.yellow .kpi-value { color: var(--yellow); }
+
+  .kpi-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 400;
+    line-height: 1.3;
+  }
+
+  .upload-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+    padding: 18px 20px;
+    background: var(--card);
+    border: 1px dashed rgba(0,212,255,.38);
+    border-radius: 12px;
+  }
+
+  .upload-copy { display: flex; flex-direction: column; gap: 4px; }
+  .upload-title {
+    font-family: var(--display);
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .upload-status {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .upload-status.loaded { color: var(--green); }
+  .upload-status.error { color: var(--red); }
+  .file-input {
+    width: min(100%, 340px);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .file-input::file-selector-button {
+    margin-right: 12px;
+    padding: 9px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(0,212,255,.38);
+    background: rgba(0,212,255,.08);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .sync-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 28px;
+  }
+
+  .sync-status {
+    color: var(--muted);
+    font-size: 12px;
+    flex: 1;
+  }
+
+  .action-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 9px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(0,212,255,.38);
+    background: rgba(0,212,255,.08);
+    color: var(--accent);
+    cursor: pointer;
+  }
+
+  /* ─── Bug Overview Grid ─────────────────────────────────── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 40px; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+  .chart-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(230px, 1fr));
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+  @media (max-width: 1180px) { .chart-grid { grid-template-columns: repeat(2, minmax(230px, 1fr)); } }
+  @media (max-width: 600px) { .chart-grid { grid-template-columns: 1fr; } }
+
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    min-height: 278px;
+    transition: border-color .2s, transform .2s;
+  }
+  .chart-card:hover {
+    border-color: rgba(0,212,255,.46);
+    transform: translateY(-2px);
+  }
+  .chart-title {
+    font-family: var(--display);
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .chart-subtitle {
+    color: var(--muted);
+    font-size: 11px;
+    margin: 4px 0 15px;
+  }
+
+  .donut-layout {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-height: 190px;
+  }
+  .donut {
+    position: relative;
+    width: 126px;
+    height: 126px;
+    flex: none;
+  }
+  .donut svg {
+    width: 126px;
+    height: 126px;
+    transform: rotate(-90deg);
+    overflow: visible;
+  }
+  .donut-bg {
+    fill: none;
+    stroke: var(--border);
+    stroke-width: 14;
+  }
+  .donut-slice {
+    fill: none;
+    stroke-width: 14;
+    stroke-linecap: butt;
+    transform-origin: 63px 63px;
+    transition: stroke-width .2s ease, filter .2s ease, opacity .2s ease;
+  }
+  .donut:hover .donut-slice { opacity: .55; }
+  .donut .donut-slice:hover {
+    stroke-width: 19;
+    opacity: 1;
+    filter: drop-shadow(0 0 7px currentColor);
+  }
+  .donut-center {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    text-align: center;
+  }
+  .donut-value {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 25px;
+    color: #fff;
+  }
+  .donut-label {
+    color: var(--muted);
+    font-size: 10px;
+    font-family: var(--mono);
+  }
+  .legend {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+  }
+  .legend-item {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 11px;
+    color: var(--text);
+  }
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+  }
+  .legend-num {
+    color: var(--muted);
+    font-family: var(--mono);
+    margin-left: auto;
+  }
+
+  .bar-list {
+    height: 188px;
+    display: flex;
+    align-items: flex-end;
+    gap: 13px;
+    padding: 12px 4px 0;
+  }
+  .bar-group {
+    flex: 1;
+    height: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 7px;
+  }
+  .bar-value {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    transition: color .2s;
+  }
+  .bar {
+    width: min(48px, 100%);
+    min-height: 3px;
+    border-radius: 7px 7px 3px 3px;
+    transform-origin: bottom;
+    animation: growBar .6s ease both;
+    transition: transform .18s ease, filter .18s ease;
+  }
+  .bar-group:hover .bar {
+    transform: scaleX(1.15) scaleY(1.04);
+    filter: brightness(1.25) drop-shadow(0 0 7px rgba(0,212,255,.34));
+  }
+  .bar-group:hover .bar-value { color: var(--accent); }
+  .bar-label {
+    font-family: var(--mono);
+    color: var(--muted);
+    font-size: 10px;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .stack-bar {
+    position: relative;
+    width: min(48px, 100%);
+    min-height: 8px;
+    border-radius: 7px 7px 3px 3px;
+    background: rgba(0,212,255,.22);
+    border: 1px solid rgba(0,212,255,.18);
+    overflow: hidden;
+    transform-origin: bottom;
+    animation: growBar .6s ease both;
+    transition: transform .18s ease, filter .18s ease;
+  }
+  .stack-bar-failed {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    min-height: 0;
+    background: linear-gradient(180deg, var(--red), #b91c1c);
+    transition: filter .18s ease, background .18s ease;
+  }
+  .bar-group:hover .stack-bar {
+    transform: scaleX(1.15) scaleY(1.04);
+    filter: brightness(1.16) drop-shadow(0 0 7px rgba(0,212,255,.34));
+  }
+  .bar-group:hover .stack-bar-failed {
+    filter: brightness(1.2);
+  }
+  .chart-key {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-top: 12px;
+    color: var(--muted);
+    font: 10px var(--mono);
+  }
+  @keyframes growBar {
+    from { transform: scaleY(0); opacity: .2; }
+    to { transform: scaleY(1); opacity: 1; }
+  }
+  .chart-empty {
+    height: 190px;
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+    font: 12px var(--mono);
+  }
+
+  /* ─── Table Panel ───────────────────────────────────────── */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 18px 22px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .panel-title {
+    font-family: var(--display);
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -.01em;
+  }
+
+  .panel-count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    background: rgba(0,212,255,.08);
+    border: 1px solid rgba(0,212,255,.2);
+    border-radius: 20px;
+    padding: 3px 10px;
+  }
+
+  .search-box {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 12px;
+    flex: 1; max-width: 260px;
+  }
+
+  .search-box input {
+    background: none; border: none; outline: none;
+    color: var(--text); font-family: var(--body); font-size: 13px;
+    width: 100%;
+  }
+  .search-box input::placeholder { color: var(--muted); }
+
+  /* ─── Table ─────────────────────────────────────────────── */
+  .table-wrap { overflow-x: auto; }
+
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead th {
+    background: var(--surface);
+    padding: 11px 14px;
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    position: sticky; top: 0;
+    transition: color .15s;
+  }
+  thead th:hover { color: var(--accent); }
+  thead th .sort-icon { margin-left: 4px; opacity: .4; font-size: 9px; }
+  thead th.sorted { color: var(--accent); }
+  thead th.sorted .sort-icon { opacity: 1; }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(30,45,69,.6);
+    transition: background .12s;
+  }
+  tbody tr:hover { background: rgba(0,212,255,.04); }
+  tbody tr:last-child { border-bottom: none; }
+
+  tbody td {
+    padding: 11px 14px;
+    color: var(--text);
+    vertical-align: middle;
+  }
+
+  .badge {
+    display: inline-flex; align-items: center;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .badge-ok   { background: rgba(16,185,129,.12); color: var(--green); border: 1px solid rgba(16,185,129,.25); }
+  .badge-fail { background: rgba(239,68,68,.12);  color: var(--red);   border: 1px solid rgba(239,68,68,.25); }
+  .badge-bug  { background: rgba(245,158,11,.12); color: var(--yellow); border: 1px solid rgba(245,158,11,.25); }
+  .badge-id   { background: rgba(0,212,255,.1);   color: var(--accent); border: 1px solid rgba(0,212,255,.2); margin: 2px; }
+  .badge-info { background: rgba(124,58,237,.12); color: #a78bfa;       border: 1px solid rgba(124,58,237,.25); }
+
+  .sn-cell {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* ─── Bug type pills container ───────────────────────────── */
+  .bug-pills { display: flex; flex-wrap: wrap; gap: 3px; }
+
+  /* ─── Bug Reference Table ───────────────────────────────── */
+  .bug-ref-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+    padding: 18px;
+  }
+
+  .bug-ref-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    transition: border-color .15s, background .15s;
+  }
+  .bug-ref-item:hover { border-color: var(--accent); background: rgba(0,212,255,.03); }
+  .bug-ref-item.highlighted { border-color: var(--yellow); background: rgba(245,158,11,.06); }
+
+  .bug-ref-id {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    min-width: 32px;
+    padding-top: 1px;
+  }
+
+  .bug-ref-desc {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  /* ─── Occurrence bar chart ───────────────────────────────── */
+  .occ-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 18px;
+    border-bottom: 1px solid rgba(30,45,69,.5);
+    transition: background .12s;
+  }
+  .occ-row:hover { background: rgba(0,212,255,.04); }
+  .occ-row:last-child { border-bottom: none; }
+
+  .occ-id {
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    color: var(--accent); min-width: 34px;
+  }
+
+  .occ-bar-wrap {
+    flex: 1; background: var(--border); border-radius: 4px; height: 8px; overflow: hidden;
+  }
+
+  .occ-bar {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    transition: width .6s cubic-bezier(.4,0,.2,1);
+  }
+
+  .occ-count {
+    font-family: var(--mono); font-size: 12px; color: var(--muted); min-width: 30px; text-align: right;
+  }
+
+  .occ-type {
+    font-size: 12px; color: var(--text); min-width: 200px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ─── Filter chips ───────────────────────────────────────── */
+  .filters {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .chip {
+    font-family: var(--mono); font-size: 11px;
+    padding: 5px 12px; border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .chip:hover, .chip.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,212,255,.08);
+  }
+
+  /* ─── Pass rate bar ─────────────────────────────────────── */
+  .pass-bar-wrap {
+    display: flex; align-items: center; gap: 8px; min-width: 100px;
+  }
+  .pass-bar-bg {
+    flex: 1; height: 6px; background: rgba(239,68,68,.2); border-radius: 3px; overflow: hidden;
+  }
+  .pass-bar-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--green), #34d399);
+  }
+  .pass-pct { font-family: var(--mono); font-size: 11px; min-width: 36px; text-align: right; }
+
+  /* ─── Scroll area ───────────────────────────────────────── */
+  .scroll-area { max-height: 420px; overflow-y: auto; }
+  .scroll-area::-webkit-scrollbar { width: 4px; }
+  .scroll-area::-webkit-scrollbar-track { background: transparent; }
+  .scroll-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* ─── Animations ────────────────────────────────────────── */
+  .fade-in { animation: fadeUp .45s ease both; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .kpi-card:nth-child(1) { animation-delay: .05s; }
+  .kpi-card:nth-child(2) { animation-delay: .10s; }
+  .kpi-card:nth-child(3) { animation-delay: .15s; }
+  .kpi-card:nth-child(4) { animation-delay: .20s; }
+  .kpi-card:nth-child(5) { animation-delay: .25s; }
+  .kpi-card:nth-child(6) { animation-delay: .30s; }
+
+  /* ─── Empty state ───────────────────────────────────────── */
+  .empty {
+    text-align: center; padding: 40px; color: var(--muted);
+    font-family: var(--mono); font-size: 12px;
+  }
+
+  /* ─── Tooltip ───────────────────────────────────────────── */
+  [data-tooltip] { position: relative; cursor: default; }
+  [data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    background: #0f172a; border: 1px solid var(--border);
+    color: var(--text); font-size: 11px; font-family: var(--body);
+    padding: 5px 10px; border-radius: 6px; white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity .15s;
+    z-index: 100;
+  }
+  [data-tooltip]:hover::after { opacity: 1; }
+
+  footer {
+    text-align: center;
+    padding: 24px 0;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+    letter-spacing: .06em;
+  }
+</style>
+</head>
+<body>
+<main class="landing-screen" id="landingScreen">
+  <div class="landing-card fade-in">
+    <span class="brand-eyebrow">HALT Testing · Quality Intelligence</span>
+    <h1>Chamber <span>HALT</span> Test Dashboard</h1>
+    <div class="upload-panel">
+      <div class="upload-copy">
+        <span class="upload-title">Upload HALT Result Spreadsheet</span>
+        <span class="upload-status" id="uploadStatus">Choose an .xls or .xlsx workbook to generate the dashboard.</span>
+      </div>
+      <input class="file-input" id="workbookInput" type="file" accept=".xls,.xlsx,.xlsm,.xlsb" aria-label="Upload HALT result spreadsheet">
+    </div>
+  </div>
+</main>
+
+<div class="wrapper dashboard-view" id="dashboardView">
+
+  <!-- ─── Header ─────────────────────────────────────────── -->
+  <header>
+    <div class="brand">
+      <span class="brand-eyebrow">◈ HALT Testing · Quality Intelligence</span>
+      <h1>Chamber <span>HALT</span> Test Dashboard</h1>
+    </div>
+    <div class="header-meta">
+      <div class="live-badge"><span class="live-dot"></span> LIVE DATA</div>
+      <div class="last-updated" id="lastUpdated">—</div>
+    </div>
+  </header>
+
+  <div class="sync-toolbar">
+    <span class="sync-status" id="syncStatus"></span>
+    <button class="action-btn" id="downloadWorkbook" type="button">Download Synced Workbook</button>
+  </div>
+
+  <!-- ─── KPI Section ─────────────────────────────────────── -->
+  <p class="section-label">Key Performance Indicators</p>
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- ─── Filters ─────────────────────────────────────────── -->
+  <p class="section-label">Filter by Meter Type</p>
+  <div class="filters" id="filterChips"></div>
+  <p class="section-label">Duration</p>
+  <div class="filters" id="durationChips"></div>
+
+  <p class="section-label">KPI Visual Analysis</p>
+  <div class="chart-grid" id="chartGrid"></div>
+
+  <!-- ─── Main Test Table ──────────────────────────────────── -->
+  <p class="section-label">Test Run Overview</p>
+  <div class="panel fade-in" style="margin-bottom:40px">
+    <div class="panel-header">
+      <span class="panel-title">All Test Runs</span>
+      <div class="search-box">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:var(--muted)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="searchInput" placeholder="Search tests, firmware, bugs…">
+      </div>
+      <span class="panel-count" id="testCount">0 tests</span>
+    </div>
+    <div class="table-wrap scroll-area">
+      <table id="testTable">
+        <thead>
+          <tr>
+            <th data-col="sn">S.N <span class="sort-icon">↕</span></th>
+            <th data-col="meterType">Meter Type <span class="sort-icon">↕</span></th>
+            <th data-col="rating">Rating <span class="sort-icon">↕</span></th>
+            <th data-col="firmware">Firmware <span class="sort-icon">↕</span></th>
+            <th data-col="moduleType">Module <span class="sort-icon">↕</span></th>
+            <th data-col="network">Network <span class="sort-icon">↕</span></th>
+            <th data-col="startDate">Start Date <span class="sort-icon">↕</span></th>
+            <th data-col="duration">Duration <span class="sort-icon">↕</span></th>
+            <th data-col="sampleQty">Samples <span class="sort-icon">↕</span></th>
+            <th data-col="failTotal">Fail/Total <span class="sort-icon">↕</span></th>
+            <th data-col="passRate">Pass Rate <span class="sort-icon">↕</span></th>
+            <th data-col="bugsFound">Bug IDs <span class="sort-icon">↕</span></th>
+            <th data-col="bugTypes">Bug Types <span class="sort-icon">↕</span></th>
+          </tr>
+        </thead>
+        <tbody id="testBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ─── Bug Reference + Occurrence ──────────────────────── -->
+  <div class="two-col">
+
+    <!-- Bug ID Reference -->
+    <div class="panel fade-in">
+      <div class="panel-header">
+        <span class="panel-title">Bug ID → Type Reference</span>
+        <span class="panel-count" id="bugRefCount">0 bugs</span>
+      </div>
+      <div class="bug-ref-grid" id="bugRefGrid"></div>
+    </div>
+
+    <!-- Occurrence Summary -->
+    <div class="panel fade-in">
+      <div class="panel-header">
+        <span class="panel-title">Bug Occurrence Summary</span>
+        <span class="panel-count" id="occCount">0 observed</span>
+      </div>
+      <div class="scroll-area" id="occList" style="max-height:360px"></div>
+    </div>
+
+  </div>
+
+</div><!-- /wrapper -->
+
+<footer class="dashboard-footer">CHAMBER HALT TEST DASHBOARD · Data sourced from Test Format, Bug Type &amp; detailed result sheets · Generated dynamically</footer>
+
+<script src="./xlsx.full.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════════
+let bugTypes = [
+  {id:"B1",  type:"Display Blank"},
+  {id:"B2",  type:"Digit cut"},
+  {id:"B3",  type:"Supercap discharge"},
+  {id:"B4",  type:"RTC corrupt"},
+  {id:"B5",  type:"Main battery discharge"},
+  {id:"B6",  type:"C-open"},
+  {id:"B7",  type:"Module open"},
+  {id:"B8",  type:"Network issue"},
+  {id:"B9",  type:"Meter run in Nm (dead at supply)"},
+  {id:"B10", type:"Extra segment"},
+  {id:"B11", type:"Meter dead"},
+  {id:"B12", type:"Sim holder issue"},
+  {id:"B13", type:"Temperature event not occurred and restored"},
+  {id:"B14", type:"Color degrade"},
+  {id:"B15", type:"Printing degrade"},
+  {id:"B16", type:"Relay issue"},
+  {id:"B17", type:"Communication issue at battery"},
+  {id:"B18", type:"Push button issue"},
+  {id:"B19", type:"Meter reset"},
+  {id:"B20", type:"Communication issue during test"},
+  {id:"B21", type:"Last gasp issue"},
+  {id:"B22", type:"Breath miss issue"},
+  {id:"B23", type:"Sim dead in chamber"},
+  {id:"B24", type:"MD jump issue"},
+  {id:"B25", type:"Accuracy issue"},
+  {id:"B26", type:"Module cover open"},
+];
+
+let bugMap = {};
+
+function buildBugMap() {
+  bugMap = {};
+  bugTypes.forEach(b => { bugMap[b.id] = b.type; });
+}
+
+buildBugMap();
+
+let rawTests = [
+  {sn:1, meterType:"1Ph CL", rating:"10-60A", mainPCB:"CL-512-V-1.7-H", firmware:"CDVGPS.06", crc:"A73D", moduleType:"N58", modulePCB:"CL-N58-VN-(1-3).3A", network:"Airtel", startDate:"2026-02-17", testPurpose:"Put meters from Production Line", testCond:"85/85", powerOnOff:"On", commOnOff:"On", duration:"1000H", sampleQty:15, accuracy:"Ok", relay:"Ok", mainBatt:"Ok", rtcBatt:"Ok", rtcDrift:"OK", optComm:"Ok", gprs:"Ok", bugsRaw:"B9",    failTotal:"2/15"},
+  {sn:2, meterType:"1Ph CL", rating:"10-60A", mainPCB:"CL-512-V-1.7-H", firmware:"CDVGPS.04", crc:"E17A", moduleType:"N58", modulePCB:"CL-N58-VN-(1-3).3A", network:"Airtel", startDate:"2025-10-11", testPurpose:"Component change to resolve Nm issue in NM", testCond:"85/85", powerOnOff:"On", commOnOff:"On", duration:"1000H", sampleQty:6,  accuracy:"Ok", relay:"Ok", mainBatt:"Ok", rtcBatt:"Ok", rtcDrift:"OK", optComm:"Ok", gprs:"Ok", bugsRaw:"B26,B11", failTotal:"02/06"},
+  {sn:3, meterType:"1Ph KR", rating:"10-60A", mainPCB:"KR-256-V-1.0.0", firmware:"GPMVS4.05", crc:"2F2B", moduleType:"Cavli", modulePCB:"KR-CAVLI-VN-(1-3).0", network:"Airtel", startDate:"2025-12-02", testPurpose:"Cavli module with 110 degree alt command", testCond:"85/85", powerOnOff:"On", commOnOff:"On", duration:"750H",  sampleQty:3,  accuracy:"Ok", relay:"Ok", mainBatt:"Ok", rtcBatt:"Ok", rtcDrift:"OK", optComm:"Ok", gprs:"Ok", bugsRaw:"OK",       failTotal:"00/03"},
+  {sn:4, meterType:"1Ph KR", rating:"10-60A", mainPCB:"KR-256-V-1.0.0", firmware:"GPMVS4.06", crc:"9E10", moduleType:"Cavli", modulePCB:"KR-CAVLI-VN-(1-3).0", network:"Airtel", startDate:"2026-01-08", testPurpose:"MVVNl with cavli module", testCond:"85/85", powerOnOff:"On", commOnOff:"On", duration:"750H",  sampleQty:5,  accuracy:"Ok", relay:"Ok", mainBatt:"Ok", rtcBatt:"Ok", rtcDrift:"OK", optComm:"Ok", gprs:"Ok", bugsRaw:"B2",      failTotal:"02/05"},
+  {sn:5, meterType:"1Ph CL", rating:"10-60A", mainPCB:"CL-512-V-1.7-H", firmware:"CVnGPS.05", crc:"B4F0", moduleType:"N58", modulePCB:"KR-N58-VT-(1-3).0", network:"Airtel", startDate:"2025-12-20", testPurpose:"Diotech make component", testCond:"85/85", powerOnOff:"On", commOnOff:"On", duration:"500H",  sampleQty:10, accuracy:"Ok", relay:"Ok", mainBatt:"Ok", rtcBatt:"Ok", rtcDrift:"OK", optComm:"Ok", gprs:"Ok", bugsRaw:"B26,B2",   failTotal:"02/10"},
+  {sn:6, meterType:"1Ph KR", rating:"5-30A",  mainPCB:"KR-256-V-1.0.0", firmware:"RFDGL0.67", crc:"B236", moduleType:"Cyan RF", modulePCB:"Cyan RF", network:"x", startDate:"2025-07-07", testPurpose:"KR production code", testCond:"85/85", powerOnOff:"On", commOnOff:"On", duration:"500H",  sampleQty:2,  accuracy:"Ok", relay:"Ok", mainBatt:"Ok", rtcBatt:"Ok", rtcDrift:"OK", optComm:"Ok", gprs:"Ok", bugsRaw:"OK",       failTotal:"00/02"},
+  {sn:7, meterType:"1Ph KR", rating:"5-30A",  mainPCB:"KR-256-V-1.0.0", firmware:"GPPVL0.70", crc:"F189", moduleType:"N58", modulePCB:"KR-N58-VT-(1-3).0", network:"Airtel", startDate:"2025-07-07", testPurpose:"KR production code", testCond:"85/85", powerOnOff:"On", commOnOff:"On", duration:"500H",  sampleQty:2,  accuracy:"Ok", relay:"Ok", mainBatt:"Ok", rtcBatt:"Ok", rtcDrift:"OK", optComm:"Ok", gprs:"Ok", bugsRaw:"Ok",       failTotal:"00/02"},
+  {sn:8, meterType:"1Ph KR", rating:"5-30A",  mainPCB:"KR-256-V-1.0.0", firmware:"GPMGL0.68", crc:"4F28", moduleType:"N58", modulePCB:"KR-N58-VT-(1-3).0", network:"Airtel", startDate:"2025-07-07", testPurpose:"KR production code", testCond:"85/85", powerOnOff:"On", commOnOff:"On", duration:"500H",  sampleQty:2,  accuracy:"Ok", relay:"Ok", mainBatt:"Ok", rtcBatt:"Ok", rtcDrift:"OK", optComm:"Ok", gprs:"Ok", bugsRaw:"Ok",       failTotal:"00/02"},
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// PARSE HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function parseBugIds(raw) {
+  if (!raw) return [];
+  const s = String(raw).trim().toUpperCase();
+  if (s === 'OK' || s === '' || s === 'N/A') return [];
+  return String(raw).split(',').map(x => x.trim().toUpperCase()).filter(x => /^B\d+$/i.test(x));
+}
+
+function parseFailTotal(ft) {
+  if (!ft) return {fail:0, total:0};
+  const clean = String(ft).replace(/,/g,'').trim();
+  const m = clean.match(/(\d+)\s*\/\s*(\d+)/);
+  if (m) return {fail:parseInt(m[1]), total:parseInt(m[2])};
+  return {fail:0, total:0};
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  if (Number.isNaN(dt.getTime())) return safeText(d) || '—';
+  return dt.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+}
+
+function enrichTests(rows) {
+  return rows.map(t => {
+    const bugs = parseBugIds(t.bugsRaw);
+    const {fail, total} = parseFailTotal(t.failTotal);
+    const passRate = total > 0 ? ((total - fail) / total) : 1;
+    return {...t, bugs, fail, total, passRate,
+      startDateObj: new Date(t.startDate)};
+  });
+}
+
+let tests = enrichTests(rawTests);
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+let state = {
+  filter: 'all',
+  duration: 'all',
+  search: '',
+  sortCol: 'sn',
+  sortDir: 1,
+};
+
+let activeWorkbook = null;
+let activeFileName = '';
+let reconciledSheets = [];
+
+const testColumnAliases = {
+  sn: ['sn', 'serialno', 'serialnumber'],
+  meterType: ['metertypecasing', 'metertype', 'casing'],
+  rating: ['meterrating', 'rating'],
+  mainPCB: ['mainpcbversion', 'mainpcb'],
+  firmware: ['firmwarever', 'firmwareversion', 'firmware'],
+  crc: ['crc'],
+  moduleType: ['moduletype', 'module'],
+  modulePCB: ['modulepcbversion', 'modulepcb'],
+  network: ['networkoperator', 'network'],
+  startDate: ['startdate', 'date'],
+  testPurpose: ['testingpurpose', 'testpurpose', 'purpose'],
+  testCond: ['testcondition', 'condition'],
+  powerOnOff: ['poweronoff'],
+  commOnOff: ['communicationonoff', 'commonoff'],
+  duration: ['testduration', 'duration'],
+  sampleQty: ['samplequantity', 'sampleqty', 'samples'],
+  accuracy: ['accuracy'],
+  relay: ['relay'],
+  mainBatt: ['mainbatteryvoltage', 'mainbattery'],
+  rtcBatt: ['rtcbatteryvoltage', 'rtcbattery'],
+  rtcDrift: ['rtcdrift'],
+  optComm: ['opticalcommunication', 'opticalcomm'],
+  gprs: ['gprsrfcommunication', 'gprscommunication', 'gprsrf'],
+  bugsRaw: ['bugsfinding', 'bugsfound', 'bugs', 'bugid'],
+  failTotal: ['failtotal', 'failuretotal']
+};
+
+function normaliseHeader(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function safeText(value) {
+  return String(value == null ? '' : value).trim();
+}
+
+function escapeHtml(value) {
+  return safeText(value).replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[char]));
+}
+
+function sheetRows(sheet) {
+  return XLSX.utils.sheet_to_json(sheet, {header: 1, defval: '', raw: true});
+}
+
+function findSheet(workbook, preferredName, requiredHeaders) {
+  const preferred = normaliseHeader(preferredName);
+  const exact = workbook.SheetNames.find(name => normaliseHeader(name) === preferred);
+  if (exact) return workbook.Sheets[exact];
+
+  return workbook.SheetNames.map(name => workbook.Sheets[name]).find(sheet => {
+    const rows = sheetRows(sheet).slice(0, 12);
+    return rows.some(row => {
+      const headings = row.map(normaliseHeader);
+      return requiredHeaders.every(required => headings.includes(required));
+    });
+  });
+}
+
+function findHeaderRow(rows, requiredHeaders) {
+  return rows.findIndex(row => {
+    const headings = row.map(normaliseHeader);
+    return requiredHeaders.every(required => headings.includes(required));
+  });
+}
+
+function workbookDate(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+  }
+  if (typeof value === 'number') {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (parsed) {
+      return `${parsed.y}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
+    }
+  }
+  const text = safeText(value);
+  const date = new Date(text);
+  return Number.isNaN(date.getTime()) ? text : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function mapTestSheet(sheet) {
+  const rows = sheetRows(sheet);
+  const headerIndex = findHeaderRow(rows, ['metertypecasing', 'samplequantity']);
+  if (headerIndex < 0) throw new Error('The Test format sheet does not contain the expected headers.');
+
+  const headings = rows[headerIndex].map(normaliseHeader);
+  const positions = {};
+  Object.entries(testColumnAliases).forEach(([key, aliases]) => {
+    positions[key] = headings.findIndex(heading => aliases.includes(heading));
+  });
+
+  return rows.slice(headerIndex + 1).map((row, index) => {
+    const value = key => positions[key] < 0 ? '' : row[positions[key]];
+    return {
+      sheetRow: headerIndex + index + 2,
+      sn: safeText(value('sn')) || index + 1,
+      meterType: safeText(value('meterType')),
+      rating: safeText(value('rating')),
+      mainPCB: safeText(value('mainPCB')),
+      firmware: safeText(value('firmware')),
+      crc: safeText(value('crc')),
+      moduleType: safeText(value('moduleType')),
+      modulePCB: safeText(value('modulePCB')),
+      network: safeText(value('network')),
+      startDate: workbookDate(value('startDate')),
+      testPurpose: safeText(value('testPurpose')),
+      testCond: safeText(value('testCond')),
+      powerOnOff: safeText(value('powerOnOff')),
+      commOnOff: safeText(value('commOnOff')),
+      duration: safeText(value('duration')),
+      sampleQty: Number(value('sampleQty')) || 0,
+      accuracy: safeText(value('accuracy')),
+      relay: safeText(value('relay')),
+      mainBatt: safeText(value('mainBatt')),
+      rtcBatt: safeText(value('rtcBatt')),
+      rtcDrift: safeText(value('rtcDrift')),
+      optComm: safeText(value('optComm')),
+      gprs: safeText(value('gprs')),
+      bugsRaw: safeText(value('bugsRaw')),
+      failTotal: safeText(value('failTotal'))
+    };
+  }).filter(test => test.meterType);
+}
+
+function mapBugSheet(sheet) {
+  if (!sheet) return bugTypes;
+  const rows = sheetRows(sheet);
+  const headerIndex = findHeaderRow(rows, ['bugid', 'bugtype']);
+  if (headerIndex < 0) return bugTypes;
+  const headings = rows[headerIndex].map(normaliseHeader);
+  const idPosition = headings.indexOf('bugid');
+  const typePosition = headings.indexOf('bugtype');
+  const mapped = rows.slice(headerIndex + 1).map(row => ({
+    id: safeText(row[idPosition]).toUpperCase(),
+    type: safeText(row[typePosition])
+  })).filter(bug => /^B\d+$/.test(bug.id) && bug.type);
+  return mapped.length ? mapped : bugTypes;
+}
+
+function getDetailMetadata(rows) {
+  let metadata = {};
+  rows.forEach((row, index) => {
+    const headings = row.map(normaliseHeader);
+    const displayIndex = headings.indexOf('displayversion');
+    const meterIndex = headings.indexOf('meterno');
+    if (displayIndex < 0 || meterIndex < 0) return;
+    const firstDataRow = rows.slice(index + 1).find(nextRow => /^CA\d+/i.test(safeText(nextRow[meterIndex])));
+    if (!firstDataRow) return;
+    const pick = heading => {
+      const position = headings.indexOf(heading);
+      return position >= 0 ? safeText(firstDataRow[position]) : '';
+    };
+    metadata = {
+      firmware: pick('displayversion') || metadata.firmware,
+      crc: pick('crc') || metadata.crc,
+      rating: pick('rating') || metadata.rating,
+      moduleType: pick('module') || metadata.moduleType,
+      mainPCB: pick('meterhw') || metadata.mainPCB,
+      modulePCB: pick('modulehw') || metadata.modulePCB
+    };
+  });
+  return metadata;
+}
+
+function detailBugIds(text) {
+  const ids = new Set((text.match(/\bB\d+\b/gi) || [])
+    .map(id => id.toUpperCase())
+    .filter(id => bugMap[id]));
+  bugTypes.forEach(bug => {
+    const bugPhrase = normaliseHeader(bug.type);
+    if (bugPhrase.length > 4 && normaliseHeader(text).includes(bugPhrase)) ids.add(bug.id);
+  });
+  const patterns = [
+    {id: 'B2', regex: /digit\s*cut/i},
+    {id: 'B9', regex: /meter.*(?:running|run).*nm|not\s+on\s+at\s+supply|dead\s+at\s+supply/i},
+    {id: 'B11', regex: /meter\s+dead/i},
+    {id: 'B16', regex: /relay\s+issue/i},
+    {id: 'B18', regex: /push\s+button\s+issue/i},
+    {id: 'B26', regex: /module\s+cover\s+open/i}
+  ];
+  patterns.forEach(rule => { if (rule.regex.test(text)) ids.add(rule.id); });
+  return [...ids];
+}
+
+function analyseDetailSheet(sheet) {
+  const rows = sheetRows(sheet);
+  const text = rows.map(row => row.map(safeText).join(' | ')).join('\n');
+  const meterIds = [...new Set((text.match(/\bCA\d+\b/gi) || []).map(id => id.toUpperCase()))];
+  const failedMeters = new Set();
+  const issuePattern = /not\s*ok|\bnok\b|\bfail(?:ed|ure)?\b|meter\s+dead|digit\s*cut|running\s+in\s+nm|not\s+on\s+at\s+supply|tamper\s+created|module\s+cover\s+open/i;
+  rows.forEach(row => {
+    const rowText = row.map(safeText).join(' | ');
+    if (!issuePattern.test(rowText)) return;
+    meterIds.forEach(id => {
+      if (rowText.toUpperCase().includes(id) || rowText.includes(id.replace(/^CA/i, ''))) failedMeters.add(id);
+    });
+  });
+  return {
+    metadata: getDetailMetadata(rows),
+    sampleQty: meterIds.length,
+    failedCount: failedMeters.size,
+    bugs: detailBugIds(text),
+    hasIssueEvidence: failedMeters.size > 0 || detailBugIds(text).length > 0
+  };
+}
+
+function matchDetailRun(sheetName, sheet, summaryRows) {
+  const name = normaliseHeader(sheetName);
+  const sheetText = normaliseHeader(sheetRows(sheet).slice(0, 110).flat().join(' '));
+  let match = summaryRows.find(test => {
+    const firmware = normaliseHeader(test.firmware);
+    return firmware && (name.includes(firmware) || sheetText.includes(firmware));
+  });
+  if (match) return match;
+  match = summaryRows.find(test => name && normaliseHeader(test.testPurpose).includes(name));
+  if (match) return match;
+  if (name.includes('clproduction')) {
+    return summaryRows.find(test => test.meterType === '1Ph CL' && test.sampleQty === 15);
+  }
+  return null;
+}
+
+function updateSummaryCells(sheet, summaryRows) {
+  const rows = sheetRows(sheet);
+  const headerIndex = findHeaderRow(rows, ['metertypecasing', 'samplequantity']);
+  const headings = rows[headerIndex].map(normaliseHeader);
+  const position = key => headings.findIndex(heading => testColumnAliases[key].includes(heading));
+  const fields = ['rating', 'mainPCB', 'firmware', 'crc', 'moduleType', 'modulePCB', 'sampleQty', 'bugsRaw', 'failTotal'];
+  summaryRows.forEach(test => fields.forEach(field => {
+    const column = position(field);
+    if (column < 0) return;
+    const address = XLSX.utils.encode_cell({r: test.sheetRow - 1, c: column});
+    sheet[address] = {t: typeof test[field] === 'number' ? 'n' : 's', v: test[field]};
+  }));
+}
+
+function reconcileDetailSheets(workbook, summaryRows, testSheet) {
+  const updated = summaryRows.map(test => ({...test}));
+  reconciledSheets = [];
+  workbook.SheetNames.slice(2).forEach(sheetName => {
+    const sheet = workbook.Sheets[sheetName];
+    const target = matchDetailRun(sheetName, sheet, updated);
+    if (!target) return;
+    const detail = analyseDetailSheet(sheet);
+    Object.entries(detail.metadata).forEach(([field, value]) => { if (value) target[field] = value; });
+    if (detail.sampleQty) target.sampleQty = detail.sampleQty;
+    if (detail.hasIssueEvidence) {
+      target.bugsRaw = detail.bugs.length ? detail.bugs.join(',') : target.bugsRaw;
+      target.failTotal = `${detail.failedCount}/${target.sampleQty}`;
+    }
+    reconciledSheets.push(sheetName);
+  });
+  updateSummaryCells(testSheet, updated);
+  return updated;
+}
+
+function setUploadStatus(message, statusClass) {
+  const status = document.getElementById('uploadStatus');
+  status.textContent = message;
+  status.className = `upload-status ${statusClass || ''}`.trim();
+}
+
+async function loadWorkbook(file) {
+  if (!window.XLSX) throw new Error('Spreadsheet reader could not load. Refresh the page and retry.');
+  const workbook = XLSX.read(await file.arrayBuffer(), {type: 'array', cellDates: true});
+  const testSheet = findSheet(workbook, 'Test format', ['metertypecasing', 'samplequantity']);
+  if (!testSheet) throw new Error('No Test format sheet was found in this workbook.');
+  const uploadedTests = mapTestSheet(testSheet);
+  if (!uploadedTests.length) throw new Error('No test records were found in the Test format sheet.');
+
+  const bugSheet = findSheet(workbook, 'Bug Type', ['bugid', 'bugtype']);
+  bugTypes = mapBugSheet(bugSheet);
+  buildBugMap();
+  rawTests = reconcileDetailSheets(workbook, uploadedTests, testSheet);
+  tests = enrichTests(rawTests);
+  activeWorkbook = workbook;
+  activeFileName = file.name.replace(/\.[^.]+$/, '');
+  state.filter = 'all';
+  state.duration = 'all';
+  state.search = '';
+  document.getElementById('searchInput').value = '';
+  document.body.classList.add('dashboard-loaded');
+  renderAll();
+  updateTimestamp();
+  document.getElementById('syncStatus').textContent =
+    `${file.name} loaded - sheet 1 synchronized from ${reconciledSheets.length} detail sheet${reconciledSheets.length === 1 ? '' : 's'}.`;
+  setUploadStatus(`${file.name} loaded - ${tests.length} test runs imported.`, 'loaded');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// KPIs
+// ═══════════════════════════════════════════════════════════════════
+function computeKPIs(data) {
+  const totalTests    = data.length;
+  const totalSamples  = data.reduce((s,t)=>s+t.sampleQty, 0);
+  const totalFails    = data.reduce((s,t)=>s+t.fail, 0);
+  const testsWithBugs = data.filter(t=>t.bugs.length>0).length;
+  const allBugIds     = [...new Set(data.flatMap(t=>t.bugs))];
+  const latestDate    = data.length
+    ? formatDate(data.slice().sort((a,b)=>b.startDateObj-a.startDateObj)[0].startDate)
+    : '—';
+  const overallPass   = data.reduce((s,t)=>s+t.total,0);
+  const overallPassPct = overallPass > 0
+    ? (((overallPass - totalFails)/overallPass)*100).toFixed(1) + '%' : '—';
+
+  return [
+    {label:"Total Tests",         value: totalTests,        accent:"blue",   icon:"🧪", tip:"Number of test runs in current view"},
+    {label:"Total Meters Tested", value: totalSamples,      accent:"purple", icon:"⚡", tip:"Sum of sample quantities"},
+    {label:"Total Failures",      value: totalFails,        accent:"red",    icon:"❌", tip:"Sum of failed units"},
+    {label:"Tests with Bugs",     value: testsWithBugs,     accent:"orange", icon:"🐛", tip:"Test runs where at least one bug was found"},
+    {label:"Unique Bug IDs Found",value: allBugIds.length,  accent:"yellow", icon:"🔍", tip:"Distinct bug IDs across all runs"},
+    {label:"Latest Test Date",    value: latestDate,        accent:"green",  icon:"📅", tip:"Most recent test start date"},
+  ];
+}
+
+function renderKPIs(data) {
+  const kpis = computeKPIs(data);
+  const grid = document.getElementById('kpiGrid');
+  grid.innerHTML = kpis.map(k => `
+    <div class="kpi-card ${k.accent} fade-in" data-tooltip="${k.tip}">
+      <span class="kpi-icon">${k.icon}</span>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-label">${k.label}</div>
+    </div>`).join('');
+}
+
+function groupTotal(data, field, valueField) {
+  return data.reduce((groups, item) => {
+    const label = safeText(item[field]) || 'Unknown';
+    groups[label] = (groups[label] || 0) + (valueField ? Number(item[valueField]) || 0 : 1);
+    return groups;
+  }, {});
+}
+
+function donutMarkup(items, centerValue, centerLabel) {
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+  if (!total) return `<div class="chart-empty">No data in current filter</div>`;
+  const radius = 48;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+  const slices = items.filter(item => item.value > 0).map(item => {
+    const length = (item.value / total) * circumference;
+    const slice = `<circle class="donut-slice" cx="63" cy="63" r="${radius}"
+      stroke="${item.color}" stroke-dasharray="${length} ${circumference - length}"
+      stroke-dashoffset="${-offset}" title="${escapeHtml(item.label)}: ${item.value}"></circle>`;
+    offset += length;
+    return slice;
+  }).join('');
+  const legend = items.map(item => `
+    <div class="legend-item" title="${escapeHtml(item.label)}: ${item.value}">
+      <span class="legend-dot" style="background:${item.color}"></span>
+      <span>${escapeHtml(item.label)}</span>
+      <span class="legend-num">${item.value}</span>
+    </div>`).join('');
+  return `<div class="donut-layout">
+    <div class="donut">
+      <svg viewBox="0 0 126 126" role="img">
+        <circle class="donut-bg" cx="63" cy="63" r="${radius}"></circle>
+        ${slices}
+      </svg>
+      <div class="donut-center">
+        <span class="donut-value">${escapeHtml(centerValue)}</span>
+        <span class="donut-label">${escapeHtml(centerLabel)}</span>
+      </div>
+    </div>
+    <div class="legend">${legend}</div>
+  </div>`;
+}
+
+function barMarkup(entries, colors) {
+  if (!entries.length) return `<div class="chart-empty">No data in current filter</div>`;
+  const max = Math.max(...entries.map(entry => entry.value), 1);
+  return `<div class="bar-list">${entries.map((entry, index) => {
+    const height = entry.value ? Math.max((entry.value / max) * 132, 6) : 3;
+    return `<div class="bar-group" title="${escapeHtml(entry.label)}: ${entry.value}">
+      <span class="bar-value">${entry.value}</span>
+      <div class="bar" style="height:${height}px;background:${colors[index % colors.length]};animation-delay:${index * .08}s"></div>
+      <span class="bar-label">${escapeHtml(entry.label)}</span>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function testedFailureBarMarkup(entries) {
+  if (!entries.length) return `<div class="chart-empty">No data in current filter</div>`;
+  const max = Math.max(...entries.map(entry => entry.total), 1);
+  return `<div class="bar-list">${entries.map((entry, index) => {
+    const totalHeight = entry.total ? Math.max((entry.total / max) * 132, 8) : 8;
+    const failedHeight = entry.total ? (entry.failed / entry.total) * 100 : 0;
+    return `<div class="bar-group" title="${escapeHtml(entry.label)}: ${entry.failed} failed out of ${entry.total} tested">
+      <span class="bar-value">${entry.failed}/${entry.total}</span>
+      <div class="stack-bar" style="height:${totalHeight}px;animation-delay:${index * .08}s">
+        <div class="stack-bar-failed" style="height:${failedHeight}%"></div>
+      </div>
+      <span class="bar-label">${escapeHtml(entry.label)}</span>
+    </div>`;
+  }).join('')}</div>
+  <div class="chart-key">
+    <span class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>Failed</span>
+    <span class="legend-item"><span class="legend-dot" style="background:rgba(0,212,255,.45)"></span>Total tested</span>
+  </div>`;
+}
+
+function renderCharts(data) {
+  const chartGrid = document.getElementById('chartGrid');
+  const totalSamples = data.reduce((sum, test) => sum + test.total, 0);
+  const totalFails = data.reduce((sum, test) => sum + test.fail, 0);
+  const passCount = Math.max(totalSamples - totalFails, 0);
+  const typeCounts = groupTotal(data, 'meterType');
+  const typeSamples = groupTotal(data, 'meterType', 'sampleQty');
+  const durationOutcomeMap = data.reduce((groups, test) => {
+    const duration = safeText(test.duration) || 'Unknown';
+    if (!groups[duration]) groups[duration] = {label: duration, failed: 0, total: 0};
+    groups[duration].failed += test.fail;
+    groups[duration].total += test.total || test.sampleQty;
+    return groups;
+  }, {});
+
+  const passChart = donutMarkup([
+    {label: 'Passed', value: passCount, color: 'var(--green)'},
+    {label: 'Failed', value: totalFails, color: 'var(--red)'}
+  ], totalSamples ? `${((passCount / totalSamples) * 100).toFixed(1)}%` : '0%', 'pass rate');
+
+  const typePalette = ['var(--accent)', 'var(--accent3)', 'var(--yellow)', 'var(--green)'];
+  const typeItems = Object.entries(typeCounts).map(([label, value], index) => ({
+    label, value, color: typePalette[index % typePalette.length]
+  }));
+  const typeChart = donutMarkup(typeItems, data.length, 'tests');
+  const failureBars = testedFailureBarMarkup(Object.values(durationOutcomeMap));
+  const meterBars = barMarkup(Object.entries(typeSamples).map(([label, value]) => ({label, value})), [
+    'linear-gradient(180deg, var(--accent), #0369a1)',
+    'linear-gradient(180deg, #a78bfa, var(--accent3))',
+    'linear-gradient(180deg, var(--green), #047857)'
+  ]);
+
+  chartGrid.innerHTML = `
+    <article class="chart-card fade-in">
+      <h3 class="chart-title">Pass vs Failure</h3>
+      <p class="chart-subtitle">Meter-level outcome distribution</p>
+      ${passChart}
+    </article>
+    <article class="chart-card fade-in">
+      <h3 class="chart-title">Tests by Meter Type</h3>
+      <p class="chart-subtitle">Runs included in current filter</p>
+      ${typeChart}
+    </article>
+    <article class="chart-card fade-in">
+      <h3 class="chart-title">Failed / Tested by Duration</h3>
+      <p class="chart-subtitle">Red failure share within total meters tested</p>
+      ${failureBars}
+    </article>
+    <article class="chart-card fade-in">
+      <h3 class="chart-title">Samples by Meter Type</h3>
+      <p class="chart-subtitle">Meters tested in each category</p>
+      ${meterBars}
+    </article>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FILTERS
+// ═══════════════════════════════════════════════════════════════════
+function renderFilters() {
+  const types = ['all', ...new Set(['1Ph CL', '1Ph KR', ...tests.map(t => t.meterType)])];
+  const chips = document.getElementById('filterChips');
+  chips.innerHTML = types.map(t => `
+    <button class="chip ${state.filter === t ? 'active' : ''}" data-filter="${escapeHtml(t)}">
+      ${t === 'all' ? 'All Types' : escapeHtml(t)}
+    </button>`).join('');
+  chips.querySelectorAll('.chip').forEach(c =>
+    c.addEventListener('click', () => {
+      state.filter = c.dataset.filter;
+      renderAll();
+    }));
+
+  const durations = ['all', ...new Set(tests.map(t => t.duration).filter(Boolean))];
+  const durationChips = document.getElementById('durationChips');
+  durationChips.innerHTML = durations.map(duration => `
+    <button class="chip ${state.duration === duration ? 'active' : ''}" data-duration="${escapeHtml(duration)}">
+      ${duration === 'all' ? 'All Durations' : escapeHtml(duration)}
+    </button>`).join('');
+  durationChips.querySelectorAll('.chip').forEach(chip =>
+    chip.addEventListener('click', () => {
+      state.duration = chip.dataset.duration;
+      renderAll();
+    }));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FILTER + SORT
+// ═══════════════════════════════════════════════════════════════════
+function getFiltered() {
+  let data = tests.slice();
+  if (state.filter !== 'all') data = data.filter(t => t.meterType === state.filter);
+  if (state.duration !== 'all') data = data.filter(t => t.duration === state.duration);
+  if (state.search) {
+    const q = state.search.toLowerCase();
+    data = data.filter(t =>
+      safeText(t.firmware).toLowerCase().includes(q) ||
+      safeText(t.meterType).toLowerCase().includes(q) ||
+      safeText(t.network).toLowerCase().includes(q) ||
+      safeText(t.moduleType).toLowerCase().includes(q) ||
+      safeText(t.bugsRaw).toLowerCase().includes(q) ||
+      t.bugs.some(b => b.toLowerCase().includes(q)) ||
+      t.bugs.some(b => (bugMap[b]||'').toLowerCase().includes(q))
+    );
+  }
+
+  const col = state.sortCol;
+  data.sort((a,b) => {
+    let va = a[col], vb = b[col];
+    if (col === 'startDate') { va = a.startDateObj; vb = b.startDateObj; }
+    if (col === 'passRate')  { va = a.passRate; vb = b.passRate; }
+    if (col === 'sampleQty'||col === 'sn') { va = +va; vb = +vb; }
+    if (va < vb) return -state.sortDir;
+    if (va > vb) return  state.sortDir;
+    return 0;
+  });
+  return data;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TEST TABLE
+// ═══════════════════════════════════════════════════════════════════
+function renderTable(data) {
+  const tbody = document.getElementById('testBody');
+  document.getElementById('testCount').textContent = `${data.length} test${data.length!==1?'s':''}`;
+
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="13" class="empty">No matching test runs found</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(t => {
+    const bugPills = t.bugs.length
+      ? t.bugs.map(b => `<span class="badge badge-id" title="${escapeHtml(bugMap[b]||'')}">${escapeHtml(b)}</span>`).join('')
+      : `<span class="badge badge-ok">No Bug</span>`;
+
+    const bugTypeText = t.bugs.length
+      ? t.bugs.map(b => `<span class="badge badge-bug" style="font-size:10px;padding:2px 6px">${escapeHtml(bugMap[b]||b)}</span>`).join('')
+      : '—';
+
+    const failBadge = t.fail > 0
+      ? `<span class="badge badge-fail">${t.fail}/${t.total}</span>`
+      : `<span class="badge badge-ok">0/${t.total}</span>`;
+
+    const pct = (t.passRate * 100).toFixed(1);
+    const barColor = t.passRate >= .9 ? 'var(--green)' : t.passRate >= .7 ? 'var(--yellow)' : 'var(--red)';
+    const passBar = `
+      <div class="pass-bar-wrap">
+        <div class="pass-bar-bg">
+          <div class="pass-bar-fill" style="width:${pct}%;background:${barColor}"></div>
+        </div>
+        <span class="pass-pct" style="color:${barColor}">${pct}%</span>
+      </div>`;
+
+    return `<tr>
+      <td class="sn-cell">#${escapeHtml(t.sn)}</td>
+      <td><span class="badge badge-info">${escapeHtml(t.meterType)}</span></td>
+      <td>${escapeHtml(t.rating)}</td>
+      <td style="font-family:var(--mono);font-size:12px">${escapeHtml(t.firmware)}</td>
+      <td>${escapeHtml(t.moduleType)}</td>
+      <td>${t.network === 'x' ? '—' : escapeHtml(t.network)}</td>
+      <td style="white-space:nowrap;font-size:12px">${escapeHtml(formatDate(t.startDate))}</td>
+      <td style="font-family:var(--mono);font-size:12px">${escapeHtml(t.duration)}</td>
+      <td style="text-align:center;font-family:var(--mono)">${t.sampleQty}</td>
+      <td>${failBadge}</td>
+      <td>${passBar}</td>
+      <td><div class="bug-pills">${bugPills}</div></td>
+      <td><div class="bug-pills">${bugTypeText}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SORT HEADERS
+// ═══════════════════════════════════════════════════════════════════
+function setupSort() {
+  document.querySelectorAll('#testTable thead th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      if (state.sortCol === col) state.sortDir *= -1;
+      else { state.sortCol = col; state.sortDir = 1; }
+      document.querySelectorAll('#testTable thead th').forEach(h => h.classList.remove('sorted'));
+      th.classList.add('sorted');
+      th.querySelector('.sort-icon').textContent = state.sortDir === 1 ? ' ↑' : ' ↓';
+      renderTable(getFiltered());
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BUG REFERENCE
+// ═══════════════════════════════════════════════════════════════════
+function renderBugRef(data) {
+  const observed = new Set(data.flatMap(t => t.bugs));
+  const grid = document.getElementById('bugRefGrid');
+  document.getElementById('bugRefCount').textContent = `${bugTypes.length} bug types`;
+
+  grid.innerHTML = bugTypes.map(b => {
+    const active = observed.has(b.id);
+    return `<div class="bug-ref-item ${active ? 'highlighted' : ''}">
+      <span class="bug-ref-id">${escapeHtml(b.id)}</span>
+      <span class="bug-ref-desc">${escapeHtml(b.type)}</span>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// OCCURRENCE SUMMARY
+// ═══════════════════════════════════════════════════════════════════
+function renderOccurrences(data) {
+  const counts = {};
+  data.forEach(t => t.bugs.forEach(b => { counts[b] = (counts[b]||0)+1; }));
+
+  const entries = bugTypes
+    .map(b => ({...b, count: counts[b.id]||0}))
+    .filter(b => b.count > 0)
+    .sort((a,b) => b.count - a.count);
+
+  const maxCount = entries.length ? entries[0].count : 1;
+  const list = document.getElementById('occList');
+  document.getElementById('occCount').textContent =
+    `${entries.length} observed`;
+
+  if (!entries.length) {
+    list.innerHTML = `<div class="empty">No bugs found in current filter</div>`;
+    return;
+  }
+
+  list.innerHTML = entries.map(e => {
+    const pct = ((e.count / data.length) * 100).toFixed(0);
+    const barW = ((e.count / maxCount) * 100).toFixed(0);
+    return `<div class="occ-row">
+      <span class="occ-id">${escapeHtml(e.id)}</span>
+      <div class="occ-bar-wrap">
+        <div class="occ-bar" style="width:${barW}%"></div>
+      </div>
+      <span class="occ-count">${e.count}×</span>
+      <span class="occ-type" title="${escapeHtml(e.type)}">${escapeHtml(e.type)}</span>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MAIN RENDER
+// ═══════════════════════════════════════════════════════════════════
+function renderAll() {
+  const data = getFiltered();
+  renderKPIs(data);
+  renderCharts(data);
+  renderFilters();
+  renderTable(data);
+  renderBugRef(data);
+  renderOccurrences(data);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+function updateTimestamp() {
+  document.getElementById('lastUpdated').textContent =
+    'Updated: ' + new Date().toLocaleString('en-GB', {
+    day:'2-digit', month:'short', year:'numeric',
+    hour:'2-digit', minute:'2-digit'
+  });
+}
+
+document.getElementById('workbookInput').addEventListener('change', async event => {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  setUploadStatus(`Loading ${file.name}...`, '');
+  try {
+    await loadWorkbook(file);
+  } catch (error) {
+    setUploadStatus(error.message || 'Unable to read this spreadsheet.', 'error');
+  }
+});
+
+document.getElementById('downloadWorkbook').addEventListener('click', () => {
+  if (!activeWorkbook) return;
+  XLSX.writeFile(activeWorkbook, `${activeFileName || 'Chamber_Halt'}_synced.xlsx`);
+});
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  state.search = e.target.value;
+  renderTable(getFiltered());
+  renderBugRef(getFiltered());
+  renderOccurrences(getFiltered());
+  renderKPIs(getFiltered());
+  renderCharts(getFiltered());
+});
+
+setupSort();
+</script>
+</body>
+</html>
