@@ -36,3 +36,26 @@ Use **Download Synced Workbook** after upload to download a workbook whose
 - `index.html`: standalone dashboard application.
 - `xlsx.full.min.js`: local SheetJS parser used to read `.xls` and `.xlsx`
   files in the browser.
+
+  ## Purpose of JavaScript Code
+
+The JavaScript code powers the dynamic behavior of the dashboard. It reads the uploaded Excel workbook, extracts data from the `Test format`, `Bug Type`, and detailed result sheets, and converts that data into KPIs, charts, filters, and table rows.
+
+The script inside `index.html` handles:
+
+- Uploading and reading `.xls`, `.xlsx`, and `.xlsm` files
+- Parsing the `Test format` summary sheet
+- Reading the `Bug Type` sheet to map bug IDs to bug descriptions
+- Linking detailed sheets 3-7 with their related summary rows
+- Calculating KPIs such as total tests, total meters tested, failures, tests with bugs, and unique bug IDs
+- Rendering dynamic charts and the Test Run Overview table
+- Applying meter type, duration, and search filters
+- Updating all KPIs, charts, and tables whenever filters change
+- Generating a synced workbook for download
+
+The file `xlsx.full.min.js` is a local Excel parser library. It allows the dashboard to read Excel workbooks directly in the browser without requiring a backend server or internet connection.
+
+In short:
+
+- `index.html` contains the dashboard layout, styling, and custom JavaScript logic.
+- `xlsx.full.min.js` enables browser-based Excel file reading.
